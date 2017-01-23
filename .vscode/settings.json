@@ -1,5 +1,5 @@
 // Place your settings in this file to overwrite default and user settings.
 {
     "editor.acceptSuggestionOnEnter": false,
-    "python.linting.pylintArgs": ["--disable=C0111", "--disable=C0301"]
+    "python.linting.pylintArgs": ["--disable=C0111", "--disable=C0301", "--disable=C0304"]
 }
