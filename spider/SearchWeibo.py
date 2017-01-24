@@ -26,13 +26,14 @@ class SearchWeibo(object):
         self.keyword_encoded = self.keyword_encode()
         self.url_begin = 'http://s.weibo.com/weibo/'
         self.page = self.visit()
-        self.wb_name_patt = re.compile(r'W_texta.W_fb\\" nick-name=\\"(\\u....){1,20}\\"')
+        # self.wb_name_patt = re.compile(r'W_texta.W_fb\\" nick-name=\\"(.*?)\\"')
+        self.wb_name_patt = re.compile(r'p class=\\"[\w|_]{11}\\" [\w|-]{9}=\\"[\w|_]{17}\\" [\w|-]{9}=\\"(.*?)\\">\\n\\t\\t(.*?)\\n\\t\\t<\\/p>')
         self.wb_time_patt = re.compile(r'\w{6}=\\"_blank\\" title=\\"[\d| |-]{13}:\d\d\\"')
         self.wb_content_patt = re.compile(r'p class=\\"[\w|_]{11}\\" [\w|-]{9}=\\"[\w|_]{17}\\" [\w|-]{9}=(.*?)\\t\\t(.*?)\\n\\t\\t<\\/p>')
         self.wb_comment_patt = re.compile(r'span class=\\"line S_line1\\">\\u8bc4\\u8bba(.*?)<em>(.*?)<\\/em><\\/span>')
         self.wb_forward_patt = re.compile(r'span class=\\"line S_line1\\">\\u8f6c\\u53d1(.*?)<em>(.*?)<\\/em><\\/span>')
         self.wb_collect_patt = re.compile(r'span class=\\"line S_line1\\">\\u6536\\u85cf(.*?)<em>(.*?)<\\/em><\\/span>')
-        self.wb_like_patt = None
+        self.wb_like_patt = re.compile(r'span class=\\"line S_line1\\"><i class=\\"W_ico12(.*?)<\\/i><em>(.*?)<\\/em><\\/span>')
 
     # def GBK2UTF(self, keyword):
     #     self.keyword = keyword.decode('GBK', 'ignore').encode("utf-8")
@@ -46,12 +47,29 @@ class SearchWeibo(object):
     def get_url(self):
         return self.url_begin + self.keyword_encoded + '&' + '&Refer=g'
 
+    def visit(self, isfile=True):
+        if isfile:
+            page_txt = open('spider/test_file/page.txt', 'r')
+            page = page_txt.read()
+            page_txt.close()
+            self.page = page
+        else:
+            req = urllib2.Request(self.get_url(), headers=headers)
+            page = urllib2.urlopen(req).read()
+            page_txt = open('spider/test_file/page.txt', 'wb')
+            page_txt.write(page)
+            page_txt.close()
+            self.page = page
+        return page
+
     def findname_reg(self):
         assert self.page != None, "Please read page first"
         names = []
         for name in re.finditer(self.wb_name_patt, self.page):
-            names.append(name.group()[27:-1])
+            # names.append(name.group()[27:-1])
+            names.append(name.group(1))
             # print name.group()[27:-1]
+            # print name.group(1)
         return names
 
     def findtime_reg(self):
@@ -75,11 +93,11 @@ class SearchWeibo(object):
         collects = []
         for collect in re.finditer(self.wb_collect_patt, self.page):
             if collect.group(2):
-                collects.append(collect.group(2))
-                # print collect.group(2)
+                collects.append(int(collect.group(2)))
+                # print int(collect.group(2))
             else:
-                collects.append('0')
-                # print '0'
+                collects.append(0)
+                # print 0
         return collects
 
     def findforward_reg(self):
@@ -87,11 +105,11 @@ class SearchWeibo(object):
         forwards = []
         for forward in re.finditer(self.wb_forward_patt, self.page):
             if forward.group(2):
-                forwards.append(forward.group(2))
-                # print forward.group(2)
+                forwards.append(int(forward.group(2)))
+                # print int(forward.group(2))
             else:
-                forwards.append('0')
-                # print '0'
+                forwards.append(0)
+                # print 0
         return forwards
 
     def findcomment_reg(self):
@@ -99,28 +117,47 @@ class SearchWeibo(object):
         comments = []
         for comment in re.finditer(self.wb_comment_patt, self.page):
             if comment.group(2):
-                comments.append(comment.group(2))
-                # print comment.group(2)
+                comments.append(int(comment.group(2)))
+                # print int(comment.group(2))
             else:
-                comments.append('0')
-                # print '0'
+                comments.append(0)
+                # print 0
         return comments
 
-    def visit(self, isfile=True):
-        if isfile:
-            page_txt = open('page.txt', 'r')
-            page = page_txt.read()
-            page_txt.close()
-            self.page = page
-        else:
-            req = urllib2.Request(self.get_url(), headers=headers)
-            page = urllib2.urlopen(req).read()
-            page_txt = open('page.txt', 'wb')
-            page_txt.write(page)
-            page_txt.close()
-            self.page = page
-        return page
+    def findlike_reg(self):
+        assert self.page != None, "Please read page first"
+        likes = []
+        for like in re.finditer(self.wb_like_patt, self.page):
+            if like.group(2):
+                likes.append(int(like.group(2)))
+                # print int(like.group(2))
+            else:
+                likes.append(0)
+                # print 0
+        return likes
 
+    def get_result(self):
+        name_list = self.findname_reg()
+        time_list = self.findtime_reg()
+        forward_list = self.findforward_reg()
+        comment_list = self.findcomment_reg()
+        like_list = self.findlike_reg()
+        content_list = self.findcontent_reg()
+        total_list = []
+        assert len(name_list) == len(time_list) == len(forward_list) == len(comment_list) \
+                              == len(like_list) == len(content_list), "different length"
+        # for index in range(len(name_list)):
+        for index, name in enumerate(name_list):
+            index_dict = {}
+            # index_dict['name'] = name_list[index]
+            index_dict['name'] = name
+            index_dict['time'] = time_list[index]
+            index_dict['forward'] = forward_list[index]
+            index_dict['comment'] = comment_list[index]
+            index_dict['like'] = like_list[index]
+            index_dict['content'] = content_list[index]
+            total_list.append(index_dict)
+        return total_list
 
 def main():
     pass
